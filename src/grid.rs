@@ -1,5 +1,10 @@
 use crate::geo::*;
 use crate::SrtmFrame;
+use geotiff::GeoTiff;
+
+// The minimum amount of distance (in degrees) between each pixel
+// 30 metres (maximum resolution of SRTM) / Earth's circumference * 360 degrees
+const RESOLUTION_DEGREES: f64 = 30.0 / 40075.0 * 360.0;
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
