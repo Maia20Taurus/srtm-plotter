@@ -8,7 +8,7 @@ const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
-pub fn get_elevation_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
+pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
     let delta_longitude = max_bound.longitude - min_bound.longitude;
     let delta_latitude = max_bound.latitude - min_bound.latitude;
 
@@ -40,7 +40,7 @@ fn lerp_between_ranges(r1_start: &f64, r1_end: &f64, r2_start: &f64, r2_end: &f6
 }
 
 /// Return a GeoPoint with the equivalent location of the provided RasterPoint
-pub fn convert_raster_to_geo(frame: &SrtmFrame, point: RasterPoint) -> GeoPoint {
+pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint {
     GeoPoint {
         longitude: lerp_between_ranges(
             &0.0,
@@ -80,6 +80,7 @@ pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint
 #[cfg(test)]
 mod tests {
     use super::*;
+    use almost;
 
     #[test]
     fn test_lerp_between_ranges() {
@@ -94,9 +95,36 @@ mod tests {
         let min = GeoPoint{longitude:0.0,latitude:0.0};
         let max = GeoPoint{longitude:1.0, latitude:1.0};
 
-        let frame = get_elevation_from_bounds(&min, &max);
+        let frame = get_frame_from_bounds(&min, &max);
 
         assert_eq!(frame.raster_width, 3601);
         assert_eq!(frame.raster_height, 3601)
+    }
+
+    #[test]
+    fn test_convert_raster_to_geo() {
+        let min = GeoPoint{longitude:0.0,latitude:0.0};
+        let max = GeoPoint{longitude:1.0, latitude:1.0};
+        let frame = get_frame_from_bounds(&min, &max);
+
+        let point = RasterPoint{x:1800,y:1500};
+        let geo = convert_raster_to_geo(&frame, &point);
+
+        assert!(almost::equal(geo.longitude, 1800.0/3601.0));
+        assert!(almost::equal(geo.latitude, 1500.0/3601.0));
+        
+    }
+
+    #[test]
+    fn test_convert_geo_to_raster() {
+        let min = GeoPoint{longitude:0.0,latitude:0.0};
+        let max = GeoPoint{longitude:1.0, latitude:1.0};
+        let frame = get_frame_from_bounds(&min, &max);
+
+        let point = GeoPoint{longitude:0.5,latitude:0.8};
+        let raster = convert_geo_to_raster(&frame, &point);
+
+        assert_eq!(raster.x,(0.5*3601.0) as usize);
+        assert_eq!(raster.y,(0.8*3601.0) as usize);
     }
 }
