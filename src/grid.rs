@@ -39,6 +39,7 @@ fn lerp_between_ranges(r1_start: &f64, r1_end: &f64, r2_start: &f64, r2_end: &f6
     r2_start + (r2_end-r2_start)*r1_percentage
 }
 
+
 /// Return a GeoPoint with the equivalent location of the provided RasterPoint
 pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint {
     GeoPoint {
@@ -56,6 +57,7 @@ pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint
             &(point.y as f64))
     }
 }
+
 
 /// Return a RasterPoint with the equivalent location of the provided GeoPoint
 pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint {
@@ -75,7 +77,7 @@ pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint
     }
 }
 
-// Current task: Write unit tests
+
 
 #[cfg(test)]
 mod tests {
