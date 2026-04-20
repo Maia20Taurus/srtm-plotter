@@ -3,13 +3,13 @@ use crate::SrtmFrame;
 use geotiff::GeoTiff;
 
 // The minimum amount of distance (in degrees) between each pixel
-// 30 metres (maximum resolution of SRTM) / Earth's circumference * 360 degrees
-const RESOLUTION_DEGREES: f64 = 30.0 / 40075.0 * 360.0;
+// 1 degree / 3601 pixels (The dimensions of a 1 degree SRTM tile)
+const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
 pub fn get_elevation_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
-    let delta_longitude = max_bound.longitude - max_bound.longitude;
+    let delta_longitude = max_bound.longitude - min_bound.longitude;
     let delta_latitude = max_bound.latitude - min_bound.latitude;
 
     let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
@@ -87,5 +87,16 @@ mod tests {
             lerp_between_ranges(&5.0, &15.0, &-10.0, &0.0, &10.0),
             -5.0
         );
+    }
+
+    #[test] // Ensure that the resolution has been calculated correctly
+    fn test_pixels_in_1_degree() {
+        let min = GeoPoint{longitude:0.0,latitude:0.0};
+        let max = GeoPoint{longitude:1.0, latitude:1.0};
+
+        let frame = get_elevation_from_bounds(&min, &max);
+
+        assert_eq!(frame.raster_width, 3601);
+        assert_eq!(frame.raster_height, 3601)
     }
 }
