@@ -25,6 +25,8 @@ pub fn get_elevation_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> 
         grid: elevation_grid
     };
 
+    frame
+
     // Next task: Enumerate each pixel, convert to GeoPoint and then Coord (from geo_types)
     // Then enumerate each tif file and use GeoTiff to find the file that contains the Coord
     // Then get the elevation for that point (this is not a good solution so this will be revisited later)
@@ -34,7 +36,7 @@ pub fn get_elevation_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> 
 /// and then use this to linearly interpolate between 'r2_start' and 'r2_end'
 fn lerp_between_ranges(r1_start: &f64, r1_end: &f64, r2_start: &f64, r2_end: &f64, r1_value: &f64) -> f64 {
     let r1_percentage = (r1_value-r1_start)/(r1_end-r1_start);
-    r2_start + (r2_start-r2_end)*r1_percentage
+    r2_start + (r2_end-r2_start)*r1_percentage
 }
 
 /// Return a GeoPoint with the equivalent location of the provided RasterPoint
@@ -73,4 +75,17 @@ pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint
     }
 }
 
-// Current task: Write the conversion functions
+// Current task: Write unit tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lerp_between_ranges() {
+        assert_eq!(
+            lerp_between_ranges(&5.0, &15.0, &-10.0, &0.0, &10.0),
+            -5.0
+        );
+    }
+}
