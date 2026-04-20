@@ -2,9 +2,9 @@
 // Determine the raster grid for this rect, then query each point to get elevation
 
 mod geo;
-mod grid_construction;
+mod grid;
 
-use geo::GeoPoint;
+use geo::*;
 
 /// Contains elevation data for a specified boundary from the SRTM dataset
 pub struct SrtmFrame {
