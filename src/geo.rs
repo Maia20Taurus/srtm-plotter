@@ -1,7 +1,8 @@
 /// A pair of coordinates (in degrees) representing a point on Earth
+#[derive(Clone, Copy)]
 pub struct GeoPoint {
-    longitude: f64,
-    latitude: f64
+    pub longitude: f64,
+    pub latitude: f64
 }
 
 impl GeoPoint {
@@ -14,9 +15,10 @@ impl GeoPoint {
 /// A pair of coordinates representing a pixel on a grid, where:
 /// x = longitude
 /// y = latitude
+#[derive(Clone, Copy)]
 pub struct RasterPoint {
-    x: usize,
-    y: usize
+    pub x: usize,
+    pub y: usize
 }
 
 impl RasterPoint {
