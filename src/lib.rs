@@ -9,12 +9,12 @@ use geo::*;
 /// Contains elevation data for a specified boundary from the SRTM dataset
 pub struct SrtmFrame {
     // The bottom left and top right of the frame in degrees
-    min_bound: GeoPoint,
-    max_bound: GeoPoint,
+    pub min_bound: GeoPoint,
+    pub max_bound: GeoPoint,
     // The dimensions of the frame in pixels
-    raster_width: u64,
-    raster_height: u64,
-    grid: Vec<Vec<i16>>
+    pub raster_width: usize,
+    pub raster_height: usize,
+    pub grid: Vec<Vec<i16>>
 }
 
 impl SrtmFrame {
