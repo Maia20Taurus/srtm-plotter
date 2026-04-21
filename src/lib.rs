@@ -1,10 +1,11 @@
 // Create a struct that contains elevation data for a requested rect with min and max bound
 // Determine the raster grid for this rect, then query each point to get elevation
 
-mod geo;
-mod grid;
+pub mod geo;
+pub mod grid;
 
 use geo::*;
+use grid::*;
 
 /// Contains elevation data for a specified boundary from the SRTM dataset
 pub struct SrtmFrame {
@@ -19,8 +20,8 @@ pub struct SrtmFrame {
 
 impl SrtmFrame {
     // Create a new SrtmTile
-    pub fn new(min_bound: GeoPoint, max_bound: GeoPoint) -> Self {
-        todo!()
+    pub fn new(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Self {
+        get_frame_from_bounds(&min_bound, &max_bound)
     }
 
     /// Get the elevation at the specified pixel
