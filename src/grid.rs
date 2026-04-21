@@ -1,6 +1,7 @@
 use crate::geo::*;
 use crate::SrtmFrame;
 use std::fs::{File, read_dir};
+use std::cmp::{min, max};
 use geotiff::GeoTiff;
 use geo_types::coord;
 
@@ -30,10 +31,45 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
     None
 }
 
+/// Returns the pixel width and height between the bounds
+/// 'RasterPoint {x: raster_width, y: raster_height}'
+fn compute_raster_dimensions(min_bound: &GeoPoint, max_bound: &GeoPoint) -> RasterPoint {
+    let delta_longitude = max_bound.longitude - min_bound.longitude;
+    let delta_latitude = max_bound.latitude - min_bound.latitude;
+
+    let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
+    let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
+
+    RasterPoint {x: raster_width, y: raster_height}
+}
+
 /// Split the region within the bounds into subregions that each occupy one geotiff;
-/// Each region will be at most 1 degree by 1 degree large
+/// Each subregion will be at most 1 degree by 1 degree large
+/// Returned frames have a zero-grid i.e. the elevation values must still be populated
 fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame> {
-    todo!()
+    let mut subframes: Vec<SrtmFrame> = Vec::new();
+
+    for part_longitude in (min_bound.longitude as usize)..(max_bound.longitude.ceil() as usize) {
+        for part_latitude in (min_bound.latitude as usize)..(max_bound.latitude.ceil() as usize) {
+
+            let partition_min = GeoPoint {
+                longitude: min_bound.longitude.max(part_longitude as f64),
+                latitude: min_bound.latitude.max(part_latitude as f64)
+            };
+            let partition_max = GeoPoint {
+                longitude: max_bound.longitude.min(part_longitude as f64),
+                latitude: max_bound.latitude.min(part_latitude as f64)
+            };
+
+            let dimensions = compute_raster_dimensions(&partition_min, &partition_max);
+
+            subframes.push(
+                SrtmFrame { min_bound: partition_min, max_bound: partition_max, raster_width: dimensions.x, raster_height: dimensions.y, grid: Vec::new()}
+            );
+        }
+    }
+
+    subframes
 }
 
 // A more efficient approach would be to partition the frame into subframes that each fit into one geotiff
@@ -45,11 +81,10 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
 pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
-    let delta_longitude = max_bound.longitude - min_bound.longitude;
-    let delta_latitude = max_bound.latitude - min_bound.latitude;
+    let raster_dimensions = compute_raster_dimensions(&min_bound, &max_bound);
 
-    let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
-    let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
+    let raster_width = raster_dimensions.x;
+    let raster_height = raster_dimensions.y;
     let elevation_grid: Vec<Vec<i16>> = vec![vec![0; raster_width]; raster_height];
 
     // The grid will be updated so this frame needs to be mutable
