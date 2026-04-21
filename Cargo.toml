@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 almost = "0.2.0"
+geo-types = "0.7.19"
 geotiff = "0.1.0"
 plotters = "0.3.7"
