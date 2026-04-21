@@ -1,10 +1,34 @@
 use crate::geo::*;
 use crate::SrtmFrame;
+use std::fs::{File, read_dir};
 use geotiff::GeoTiff;
+use geo_types::coord;
 
 // The minimum amount of distance (in degrees) between each pixel
 // 1 degree / 3601 pixels (The dimensions of a 1 degree SRTM tile)
 const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
+
+const TIF_DIR: &str = "resources";
+
+/// Enumerates all tifs in /resources/ to find one that contains 'point' and returns a GeoTiff object for that tif
+/// Returns 'none' if no such tifs exist
+fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
+    for entry in read_dir(TIF_DIR).expect("Could not read TIF_DIR") {
+        let path = entry.ok()?.path();
+        let file = File::open(path).expect("Could not read file.");
+        let geotiff = GeoTiff::read(file).expect("Could not read geotiff");
+
+        let bounds = geotiff.model_extent();
+        let min = bounds.min();
+        let max = bounds.max();
+
+        if point.longitude >= min.x && point.longitude < max.x
+        && point.latitude >= min.y && point.latitude < max.y {
+            return Some(geotiff);
+        }
+    }
+    None
+}
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
@@ -14,7 +38,7 @@ pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Srtm
 
     let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
     let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
-    let mut elevation_grid: Vec<Vec<i16>> = vec![vec![0; raster_width]; raster_height];
+    let elevation_grid: Vec<Vec<i16>> = vec![vec![0; raster_width]; raster_height];
 
     // The grid will be updated so this frame needs to be mutable
     let mut frame = SrtmFrame {
@@ -24,6 +48,15 @@ pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Srtm
         raster_height: raster_height,
         grid: elevation_grid
     };
+
+    for y in 0..raster_height {
+        for x in 0..raster_width {
+            let point = convert_raster_to_geo(&frame, &RasterPoint { x, y });
+            let geotiff = get_geotiff_at_point(&point).expect("Could not find geotiff");
+
+            frame.grid[y][x] = geotiff.get_value_at(&coord!{x:point.longitude, y:point.latitude}, 0).expect("Could not read elevation");
+        }
+    }
 
     frame
 
