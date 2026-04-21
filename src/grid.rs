@@ -30,6 +30,18 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
     None
 }
 
+/// Split the region within the bounds into subregions that each occupy one geotiff;
+/// Each region will be at most 1 degree by 1 degree large
+fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame> {
+    todo!()
+}
+
+// A more efficient approach would be to partition the frame into subframes that each fit into one geotiff
+// This reduces file reading operations and time complexity
+// This would also allow make it trivial to implement multithreading
+// The file reading could also be decreased by mapping the bounds of each geotiff with the filename,
+// bringing read complexity from O(n) > O(1)
+
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
 pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
