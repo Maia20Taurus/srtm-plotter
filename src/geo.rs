@@ -1,5 +1,5 @@
 use crate::SrtmFrame;
-use crate::grid::get_frame_from_bounds;
+use crate::grid::get_elevation_in_bounds;
 
 /// A pair of coordinates (in degrees) representing a point on Earth
 #[derive(Clone, Copy, Debug)]
@@ -92,12 +92,12 @@ mod tests {
     fn test_convert_raster_to_geo() {
         let min = GeoPoint{longitude:0.0,latitude:50.0};
         let max = GeoPoint{longitude:1.0, latitude:51.0};
-        let frame = get_frame_from_bounds(&min, &max);
+        let frame = get_elevation_in_bounds(&min, &max);
 
         let point = RasterPoint{x:1800,y:1500};
         let geo = convert_raster_to_geo(&frame, &point);
 
-        assert!(almost::equal(geo.longitude, 50.0+1800.0/3601.0));
+        assert!(almost::equal(geo.longitude, 1800.0/3601.0));
         assert!(almost::equal(geo.latitude, 50.0+1500.0/3601.0));
         
     }
@@ -106,9 +106,9 @@ mod tests {
     fn test_convert_geo_to_raster() {
         let min = GeoPoint{longitude:0.0,latitude:50.0};
         let max = GeoPoint{longitude:1.0, latitude:51.0};
-        let frame = get_frame_from_bounds(&min, &max);
+        let frame = get_elevation_in_bounds(&min, &max);
 
-        let point = GeoPoint{longitude:50.5,latitude:50.8};
+        let point = GeoPoint{longitude:0.5,latitude:50.8};
         let raster = convert_geo_to_raster(&frame, &point);
 
         assert_eq!(raster.x,(0.5*3601.0) as usize);
