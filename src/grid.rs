@@ -11,6 +11,18 @@ const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
 
 const TIF_DIR: &str = "resources";
 
+/// Returns the pixel width and height between the bounds
+/// 'RasterPoint {x: raster_width, y: raster_height}'
+fn compute_raster_dimensions(min_bound: &GeoPoint, max_bound: &GeoPoint) -> RasterPoint {
+    let delta_longitude = max_bound.longitude - min_bound.longitude;
+    let delta_latitude = max_bound.latitude - min_bound.latitude;
+
+    let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
+    let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
+
+    RasterPoint {x: raster_width, y: raster_height}
+}
+
 /// Enumerates all tifs in /resources/ to find one that contains 'point' and returns a GeoTiff object for that tif
 /// Returns 'none' if no such tifs exist
 fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
@@ -31,16 +43,22 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
     None
 }
 
-/// Returns the pixel width and height between the bounds
-/// 'RasterPoint {x: raster_width, y: raster_height}'
-fn compute_raster_dimensions(min_bound: &GeoPoint, max_bound: &GeoPoint) -> RasterPoint {
-    let delta_longitude = max_bound.longitude - min_bound.longitude;
-    let delta_latitude = max_bound.latitude - min_bound.latitude;
+/// Populate the frame's elevation grid using GeoTiff data
+/// This function expects the frame to fit inside a single GeoTiff (see partition_bounds to achieve this)
+/// () if no GeoTiff is found for any of the pixels in the frame
+fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
+    let geotiff = get_geotiff_at_point(&frame.min_bound).expect("GeoTiff does not exist");
 
-    let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
-    let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
+    for y in 0..frame.raster_height {
+        for x in 0..frame.raster_height {
+            let pixel = RasterPoint{x, y};
+            let coordinate = convert_raster_to_geo(&frame, &pixel);
 
-    RasterPoint {x: raster_width, y: raster_height}
+            frame.grid[y][x] = geotiff.get_value_at(&coord!{x:coordinate.longitude, y:coordinate.latitude}, 0).expect("Could not get elevation");
+        }
+    }
+
+    Some(frame)
 }
 
 /// Split the region within the bounds into subregions that each occupy one geotiff;
@@ -63,16 +81,23 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
 
             let dimensions = compute_raster_dimensions(&partition_min, &partition_max);
 
+            let subframe = SrtmFrame {
+                min_bound: partition_min, 
+                max_bound: partition_max, 
+                raster_width: dimensions.x, 
+                raster_height: dimensions.y, 
+                grid: vec![vec![0; dimensions.x]; dimensions.y]};
+
+            let populated_subframe = fill_frame_elevation_grid(subframe).expect("GeoTiff does not exist for this subframe");
+
             subframes.push(
-                SrtmFrame { min_bound: partition_min, max_bound: partition_max, raster_width: dimensions.x, raster_height: dimensions.y, grid: Vec::new()}
+                populated_subframe
             );
         }
     }
 
     subframes
 }
-
-// The 
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
@@ -92,14 +117,7 @@ pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Srtm
         grid: elevation_grid
     };
 
-    for y in 0..raster_height {
-        for x in 0..raster_width {
-            let point = convert_raster_to_geo(&frame, &RasterPoint { x, y });
-            let geotiff = get_geotiff_at_point(&point).expect("Could not find geotiff");
-
-            frame.grid[y][x] = geotiff.get_value_at(&coord!{x:point.longitude, y:point.latitude}, 0).expect("Could not read elevation");
-        }
-    }
+    let subframes = partition_bounds(&min_bound, &max_bound);
 
     frame
 
@@ -126,10 +144,19 @@ mod tests {
     }
 
     #[test]
-    fn test_partition_bounds_creates_correct_number_of_subframes() {
+    #[ignore] // Bounds are outside of the geotiffs in my test data
+    fn test_partition_bounds_creates_multiple_subframes() {
         let min = GeoPoint{longitude:-4.3,latitude:0.0};
         let max = GeoPoint{longitude:1.0, latitude:1.2};
 
         assert_eq!(partition_bounds(&min, &max).len(), 12);
+    }
+
+    #[test]
+    fn test_partition_bounds_creates_one_subframe() {
+        let min = GeoPoint{longitude:-3.8,latitude:50.0};
+        let max = GeoPoint{longitude:-3.2, latitude:50.6};
+
+        assert_eq!(partition_bounds(&min, &max).len(), 1);
     }
 }

@@ -8,7 +8,7 @@ use geo::*;
 use grid::*;
 
 /// Contains elevation data for a specified boundary from the SRTM dataset
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SrtmFrame {
     // The bottom left and top right of the frame in degrees
     pub min_bound: GeoPoint,
