@@ -50,7 +50,7 @@ fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
     let geotiff = get_geotiff_at_point(&frame.min_bound).expect("GeoTiff does not exist");
 
     for y in 0..frame.raster_height {
-        for x in 0..frame.raster_height {
+        for x in 0..frame.raster_width {
             let pixel = RasterPoint{x, y};
             let coordinate = convert_raster_to_geo(&frame, &pixel);
 
@@ -75,8 +75,8 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
                 latitude: min_bound.latitude.max(part_latitude as f64)
             };
             let partition_max = GeoPoint {
-                longitude: max_bound.longitude.min(part_longitude as f64),
-                latitude: max_bound.latitude.min(part_latitude as f64)
+                longitude: max_bound.longitude.min(part_longitude as f64 + 1.0),
+                latitude: max_bound.latitude.min(part_latitude as f64 + 1.0)
             };
 
             let dimensions = compute_raster_dimensions(&partition_min, &partition_max);
@@ -99,31 +99,31 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
     subframes
 }
 
-/// Create a grid of elevation points
-/// min_bound and max_bound represent the bottom left and top right of the grid respectively
-pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
-    let raster_dimensions = compute_raster_dimensions(&min_bound, &max_bound);
-
-    let raster_width = raster_dimensions.x;
-    let raster_height = raster_dimensions.y;
-    let elevation_grid: Vec<Vec<i16>> = vec![vec![0; raster_width]; raster_height];
-
-    // The grid will be updated so this frame needs to be mutable
-    let mut frame = SrtmFrame {
-        min_bound: min_bound.clone(),
-        max_bound: max_bound.clone(),
-        raster_width: raster_width,
-        raster_height: raster_height,
-        grid: elevation_grid
+/// Return an SrtmFrame containing elevation data within 'min_bound' and 'max_bound'
+/// Returns 'None' if there is missing data for any coordinates inside the frame
+pub fn get_elevation_in_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
+    let dimensions = compute_raster_dimensions(&min_bound, &max_bound);
+    let mut main_frame = SrtmFrame{
+        min_bound:min_bound.clone(),
+        max_bound:max_bound.clone(),
+        raster_width: dimensions.x,
+        raster_height: dimensions.y,
+        grid: vec![vec![0; dimensions.x]; dimensions.y]
     };
 
-    let subframes = partition_bounds(&min_bound, &max_bound);
+    let sub_frames = partition_bounds(&min_bound, &max_bound);
 
-    frame
+    for subframe in sub_frames {
+        let min_pixels = convert_geo_to_raster(&main_frame, &subframe.min_bound);
 
-    // Next task: Enumerate each pixel, convert to GeoPoint and then Coord (from geo_types)
-    // Then enumerate each tif file and use GeoTiff to find the file that contains the Coord
-    // Then get the elevation for that point (this is not a good solution so this will be revisited later)
+        for y in 0..subframe.raster_height {
+            for x in 0..subframe.raster_width {
+                main_frame.grid[y+min_pixels.y][x+min_pixels.x] = subframe.grid[y][x];
+            }
+        }
+    };
+
+    main_frame
 }
 
 
@@ -137,17 +137,27 @@ mod tests {
         let min = GeoPoint{longitude:0.0,latitude:50.0};
         let max = GeoPoint{longitude:1.0, latitude:51.0};
 
-        let frame = get_frame_from_bounds(&min, &max);
+        let frame = get_elevation_in_bounds(&min, &max);
 
         assert_eq!(frame.raster_width, 3601);
         assert_eq!(frame.raster_height, 3601)
     }
 
     #[test]
-    #[ignore] // Bounds are outside of the geotiffs in my test data
+    fn test_pixels_in_half_degree() {
+        let min = GeoPoint{longitude:0.0,latitude:50.0};
+        let max = GeoPoint{longitude:0.5, latitude:50.5};
+
+        let frame = get_elevation_in_bounds(&min, &max);
+
+        assert_eq!(frame.raster_width, 1800);
+        assert_eq!(frame.raster_height, 1800)
+    }
+
+    #[test]
     fn test_partition_bounds_creates_multiple_subframes() {
-        let min = GeoPoint{longitude:-4.3,latitude:0.0};
-        let max = GeoPoint{longitude:1.0, latitude:1.2};
+        let min = GeoPoint{longitude:-4.3,latitude:50.0};
+        let max = GeoPoint{longitude:1.0, latitude:51.2};
 
         assert_eq!(partition_bounds(&min, &max).len(), 12);
     }

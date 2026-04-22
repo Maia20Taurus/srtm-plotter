@@ -22,7 +22,7 @@ pub struct SrtmFrame {
 impl SrtmFrame {
     // Create a new SrtmTile
     pub fn new(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Self {
-        get_frame_from_bounds(&min_bound, &max_bound)
+        get_elevation_in_bounds(&min_bound, &max_bound)
     }
 
     /// Get the elevation at the specified pixel
