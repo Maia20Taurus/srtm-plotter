@@ -10,4 +10,5 @@ fn main() {
         latitude:min_bound.latitude+0.001
     };
     let frame = SrtmFrame::new(&min_bound, &max_bound);
+    println!("{:?}", frame.grid);
 }

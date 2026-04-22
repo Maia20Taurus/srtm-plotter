@@ -2,7 +2,7 @@ use crate::SrtmFrame;
 use crate::grid::get_frame_from_bounds;
 
 /// A pair of coordinates (in degrees) representing a point on Earth
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct GeoPoint {
     pub longitude: f64,
     pub latitude: f64
@@ -18,7 +18,7 @@ impl GeoPoint {
 /// A pair of coordinates representing a pixel on a grid, where:
 /// x = longitude
 /// y = latitude
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct RasterPoint {
     pub x: usize,
     pub y: usize
