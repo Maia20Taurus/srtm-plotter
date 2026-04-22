@@ -49,8 +49,8 @@ fn compute_raster_dimensions(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Rast
 fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame> {
     let mut subframes: Vec<SrtmFrame> = Vec::new();
 
-    for part_longitude in (min_bound.longitude as usize)..(max_bound.longitude.ceil() as usize) {
-        for part_latitude in (min_bound.latitude as usize)..(max_bound.latitude.ceil() as usize) {
+    for part_longitude in (min_bound.longitude.floor() as isize)..(max_bound.longitude.ceil() as isize) {
+        for part_latitude in (min_bound.latitude.floor() as isize)..(max_bound.latitude.ceil() as isize) {
 
             let partition_min = GeoPoint {
                 longitude: min_bound.longitude.max(part_longitude as f64),
@@ -72,11 +72,7 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
     subframes
 }
 
-// A more efficient approach would be to partition the frame into subframes that each fit into one geotiff
-// This reduces file reading operations and time complexity
-// This would also allow make it trivial to implement multithreading
-// The file reading could also be decreased by mapping the bounds of each geotiff with the filename,
-// bringing read complexity from O(n) > O(1)
+// The 
 
 /// Create a grid of elevation points
 /// min_bound and max_bound represent the bottom left and top right of the grid respectively
@@ -112,70 +108,16 @@ pub fn get_frame_from_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Srtm
     // Then get the elevation for that point (this is not a good solution so this will be revisited later)
 }
 
-/// Use inverse linear interpolation to find the percentage of 'r1_value' between 'r1_start' and 'r1_end'
-/// and then use this to linearly interpolate between 'r2_start' and 'r2_end'
-fn lerp_between_ranges(r1_start: &f64, r1_end: &f64, r2_start: &f64, r2_end: &f64, r1_value: &f64) -> f64 {
-    let r1_percentage = (r1_value-r1_start)/(r1_end-r1_start);
-    r2_start + (r2_end-r2_start)*r1_percentage
-}
-
-
-/// Return a GeoPoint with the equivalent location of the provided RasterPoint
-pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint {
-    GeoPoint {
-        longitude: lerp_between_ranges(
-            &0.0,
-            &(frame.raster_width as f64),
-            &frame.min_bound.longitude,
-            &frame.max_bound.longitude,
-            &(point.x as f64)),
-        latitude: lerp_between_ranges(
-            &0.0,
-            &(frame.raster_height as f64),
-            &frame.min_bound.latitude,
-            &frame.max_bound.latitude,
-            &(point.y as f64))
-    }
-}
-
-
-/// Return a RasterPoint with the equivalent location of the provided GeoPoint
-pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint {
-    RasterPoint {
-        x: lerp_between_ranges(
-            &frame.min_bound.longitude,
-            &frame.max_bound.longitude,
-            &0.0,
-            &(frame.raster_width as f64),
-            &point.longitude) as usize,
-        y: lerp_between_ranges(
-            &frame.min_bound.latitude,
-            &frame.max_bound.latitude,
-            &0.0,
-            &(frame.raster_height as f64),
-            &point.latitude) as usize
-    }
-}
-
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use almost;
-
-    #[test]
-    fn test_lerp_between_ranges() {
-        assert_eq!(
-            lerp_between_ranges(&5.0, &15.0, &-10.0, &0.0, &10.0),
-            -5.0
-        );
-    }
 
     #[test] // Ensure that the resolution has been calculated correctly
     fn test_pixels_in_1_degree() {
-        let min = GeoPoint{longitude:0.0,latitude:0.0};
-        let max = GeoPoint{longitude:1.0, latitude:1.0};
+        let min = GeoPoint{longitude:0.0,latitude:50.0};
+        let max = GeoPoint{longitude:1.0, latitude:51.0};
 
         let frame = get_frame_from_bounds(&min, &max);
 
@@ -184,29 +126,10 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_raster_to_geo() {
-        let min = GeoPoint{longitude:0.0,latitude:0.0};
-        let max = GeoPoint{longitude:1.0, latitude:1.0};
-        let frame = get_frame_from_bounds(&min, &max);
+    fn test_partition_bounds_creates_correct_number_of_subframes() {
+        let min = GeoPoint{longitude:-4.3,latitude:0.0};
+        let max = GeoPoint{longitude:1.0, latitude:1.2};
 
-        let point = RasterPoint{x:1800,y:1500};
-        let geo = convert_raster_to_geo(&frame, &point);
-
-        assert!(almost::equal(geo.longitude, 1800.0/3601.0));
-        assert!(almost::equal(geo.latitude, 1500.0/3601.0));
-        
-    }
-
-    #[test]
-    fn test_convert_geo_to_raster() {
-        let min = GeoPoint{longitude:0.0,latitude:0.0};
-        let max = GeoPoint{longitude:1.0, latitude:1.0};
-        let frame = get_frame_from_bounds(&min, &max);
-
-        let point = GeoPoint{longitude:0.5,latitude:0.8};
-        let raster = convert_geo_to_raster(&frame, &point);
-
-        assert_eq!(raster.x,(0.5*3601.0) as usize);
-        assert_eq!(raster.y,(0.8*3601.0) as usize);
+        assert_eq!(partition_bounds(&min, &max).len(), 12);
     }
 }
