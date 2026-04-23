@@ -1,5 +1,5 @@
 use crate::SrtmFrame;
-use crate::grid::get_elevation_in_bounds;
+use crate::grid::RESOLUTION_DEGREES;
 
 /// A pair of coordinates (in degrees) representing a point on Earth
 #[derive(Clone, Copy, Debug)]
@@ -31,28 +31,11 @@ impl RasterPoint {
     }
 }
 
-/// Use inverse linear interpolation to find the percentage of 'r1_value' between 'r1_start' and 'r1_end'
-/// and then use this to linearly interpolate between 'r2_start' and 'r2_end'
-fn lerp_between_ranges(r1_start: &f64, r1_end: &f64, r2_start: &f64, r2_end: &f64, r1_value: &f64) -> f64 {
-    let r1_percentage = (r1_value-r1_start)/(r1_end-r1_start);
-    r2_start + (r2_end-r2_start)*r1_percentage
-}
-
 /// Return a GeoPoint with the equivalent location of the provided RasterPoint
 pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint {
     GeoPoint {
-        longitude: lerp_between_ranges(
-            &0.0,
-            &(frame.raster_width as f64),
-            &frame.min_bound.longitude,
-            &frame.max_bound.longitude,
-            &(point.x as f64)),
-        latitude: lerp_between_ranges(
-            &0.0,
-            &(frame.raster_height as f64),
-            &frame.min_bound.latitude,
-            &frame.max_bound.latitude,
-            &(point.y as f64))
+        longitude: frame.min_bound.longitude + (point.x as f64) * RESOLUTION_DEGREES,
+        latitude: frame.min_bound.latitude + (point.y as f64) * RESOLUTION_DEGREES
     }
 }
 
@@ -60,33 +43,16 @@ pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint
 /// Return a RasterPoint with the equivalent location of the provided GeoPoint
 pub fn convert_geo_to_raster(frame: &SrtmFrame, point: &GeoPoint) -> RasterPoint {
     RasterPoint {
-        x: lerp_between_ranges(
-            &frame.min_bound.longitude,
-            &frame.max_bound.longitude,
-            &0.0,
-            &(frame.raster_width as f64),
-            &point.longitude) as usize,
-        y: lerp_between_ranges(
-            &frame.min_bound.latitude,
-            &frame.max_bound.latitude,
-            &0.0,
-            &(frame.raster_height as f64),
-            &point.latitude) as usize
+        x: ((point.longitude - frame.min_bound.longitude) / RESOLUTION_DEGREES).round() as usize,
+        y: ((point.latitude - frame.min_bound.latitude) / RESOLUTION_DEGREES).round() as usize
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::get_elevation_in_bounds;
     use super::*;
     use almost;
-
-   #[test]
-    fn test_lerp_between_ranges() {
-        assert_eq!(
-            lerp_between_ranges(&5.0, &15.0, &-10.0, &0.0, &10.0),
-            -5.0
-        );
-    }
 
     #[test]
     fn test_convert_raster_to_geo() {
@@ -111,7 +77,7 @@ mod tests {
         let point = GeoPoint{longitude:0.5,latitude:50.8};
         let raster = convert_geo_to_raster(&frame, &point);
 
-        assert_eq!(raster.x,(0.5*3601.0) as usize);
-        assert_eq!(raster.y,(0.8*3601.0) as usize);
+        assert_eq!(raster.x,1801 as usize);
+        assert_eq!(raster.y,2881 as usize);
     }
 }

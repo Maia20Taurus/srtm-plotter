@@ -7,7 +7,7 @@ use geo_types::coord;
 
 // The minimum amount of distance (in degrees) between each pixel
 // 1 degree / 3601 pixels (The dimensions of a 1 degree SRTM tile)
-const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
+pub const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
 
 const TIF_DIR: &str = "resources";
 
@@ -35,8 +35,8 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
         let min = bounds.min();
         let max = bounds.max();
 
-        if point.longitude >= min.x && point.longitude < max.x
-        && point.latitude >= min.y && point.latitude < max.y {
+        if point.longitude > min.x && point.longitude < max.x
+        && point.latitude > min.y && point.latitude < max.y {
             return Some(geotiff);
         }
     }
@@ -49,12 +49,24 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
 fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
     let geotiff = get_geotiff_at_point(&frame.min_bound).expect("GeoTiff does not exist");
 
+    let extent = geotiff.model_extent();
+    let tif_min = extent.min();
+    let tif_max = extent.max();
+
+    let eps = 1e-12;
+
     for y in 0..frame.raster_height {
         for x in 0..frame.raster_width {
             let pixel = RasterPoint{x, y};
             let coordinate = convert_raster_to_geo(&frame, &pixel);
 
-            frame.grid[y][x] = geotiff.get_value_at(&coord!{x:coordinate.longitude, y:coordinate.latitude}, 0).expect("Could not get elevation");
+            frame.grid[y][x] = geotiff.get_value_at(
+                &coord!{
+                    // Clamp the coordinates inside the geotiff to prevent queries at its edges
+                    x:coordinate.longitude.clamp(tif_min.x+eps, tif_max.x-eps),
+                    y:coordinate.latitude.clamp(tif_min.y+eps, tif_max.y-eps)},
+                    0
+            ).expect("Could not get elevation");
         }
     }
 
