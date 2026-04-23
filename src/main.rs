@@ -10,5 +10,11 @@ fn main() {
         latitude:min_bound.latitude+1.5
     };
     let frame = SrtmFrame::new(&min_bound, &max_bound);
-    println!("{:?}", frame.grid);
+
+    let point = GeoPoint {
+        longitude: -3.0,
+        latitude: 51.0
+    };
+    let elevation = frame.get_elevation_at_point(&point);
+    println!("{}", elevation);
 }
