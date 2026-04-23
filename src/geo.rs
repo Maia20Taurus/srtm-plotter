@@ -35,7 +35,7 @@ impl RasterPoint {
 pub fn convert_raster_to_geo(frame: &SrtmFrame, point: &RasterPoint) -> GeoPoint {
     GeoPoint {
         longitude: frame.min_bound.longitude + (point.x as f64) * RESOLUTION_DEGREES,
-        latitude: frame.min_bound.latitude + (point.y as f64) * RESOLUTION_DEGREES
+        latitude: frame.max_bound.latitude - (point.y as f64) * RESOLUTION_DEGREES
     }
 }
 
