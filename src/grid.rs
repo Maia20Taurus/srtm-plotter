@@ -16,8 +16,8 @@ fn compute_raster_dimensions(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Rast
     let delta_longitude = max_bound.longitude - min_bound.longitude;
     let delta_latitude = max_bound.latitude - min_bound.latitude;
 
-    let raster_width = (delta_longitude/RESOLUTION_DEGREES) as usize;
-    let raster_height = (delta_latitude/RESOLUTION_DEGREES) as usize;
+    let raster_width = (delta_longitude/RESOLUTION_DEGREES).round() as usize;
+    let raster_height = (delta_latitude/RESOLUTION_DEGREES).round() as usize;
 
     RasterPoint {x: raster_width, y: raster_height}
 }
@@ -34,8 +34,8 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
         let min = bounds.min();
         let max = bounds.max();
 
-        if point.longitude > min.x && point.longitude < max.x
-        && point.latitude > min.y && point.latitude < max.y {
+        if point.longitude >= min.x && point.longitude < max.x
+        && point.latitude >= min.y && point.latitude < max.y {
             return Some(geotiff);
         }
     }
@@ -51,13 +51,7 @@ fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
         latitude:(frame.max_bound.latitude+frame.min_bound.latitude)/2.0
     };
 
-    let geotiff = get_geotiff_at_point(&mid).expect("GeoTiff does not exist");
-
-    let extent = geotiff.model_extent();
-    let tif_min = extent.min();
-    let tif_max = extent.max();
-
-    let eps = 1e-12;
+    let geotiff = get_geotiff_at_point(&mid)?;
 
     for y in 0..frame.raster_height {
         for x in 0..frame.raster_width {
@@ -134,7 +128,7 @@ pub fn get_elevation_in_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Sr
 
         for y in 0..subframe.raster_height {
             for x in 0..subframe.raster_width {
-                main_frame.grid[y+min_pixels.y][x+min_pixels.x] = subframe.grid[y][x];
+                main_frame.grid[y+min_pixels.y][x+min_pixels.x] = subframe.get_elevation_at_pixel(x, y);
             }
         }
     };
