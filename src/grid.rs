@@ -1,6 +1,7 @@
 use crate::geo::*;
 use crate::SrtmFrame;
 use std::fs::{File, read_dir};
+use std::vec;
 use geotiff::GeoTiff;
 use geo_types::coord;
 
@@ -71,68 +72,72 @@ fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
     Some(frame)
 }
 
-/// Split the region within the bounds into subregions that each occupy one geotiff;
-/// Each subregion will be at most 1 degree by 1 degree large
-/// Returned frames have a zero-grid i.e. the elevation values must still be populated
-fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame> {
-    let mut subframes: Vec<SrtmFrame> = Vec::new();
+fn fill_frame_with_partition(main_frame: &mut SrtmFrame, partition_min: GeoPoint, partition_max: GeoPoint) {
+    let geotiff = get_geotiff_at_point(&partition_min).expect("geotiff does not exist");
 
-    for part_longitude in (min_bound.longitude.floor() as isize)..(max_bound.longitude.ceil() as isize) {
-        for part_latitude in (min_bound.latitude.floor() as isize)..(max_bound.latitude.ceil() as isize) {
+    let partition_dimensions = compute_raster_dimensions(&partition_min, &partition_max);
+    let partition_start_pixel = convert_geo_to_raster(&main_frame, &partition_min);
+
+    // Initialise a partition frame to allow use of the coordinates conversion functions
+    let partition_frame = SrtmFrame {
+        min_bound: partition_min.clone(),
+        max_bound: partition_max.clone(),
+        raster_width: partition_dimensions.x,
+        raster_height: partition_dimensions.y,
+        grid: vec![vec![0; 0]; 0] // Empty vec needed just to initialise the frame
+    };
+
+    for part_y in 0..partition_dimensions.y {
+        for part_x in 0..partition_dimensions.x {
+
+            let current_pixel_main = RasterPoint{
+                x: partition_start_pixel.x + part_x,
+                y: partition_start_pixel.y + part_y 
+            };
+            let current_pixel_partition = RasterPoint{
+                x: part_x,
+                y: part_y
+            };
+
+            let current_point = convert_raster_to_geo(&partition_frame, &current_pixel_partition);
+
+            main_frame.grid[current_pixel_main.y][current_pixel_main.x] = geotiff.get_value_at(
+                &coord!{x:current_point.longitude,y:current_point.latitude},
+                0).unwrap_or(0);
+        }
+    }
+}
+
+pub fn get_elevation_in_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
+    let main_dimensions = compute_raster_dimensions(&min_bound, &max_bound);
+
+    let mut main_frame = SrtmFrame {
+        min_bound:min_bound.clone(),
+        max_bound:max_bound.clone(),
+        raster_width:main_dimensions.x,
+        raster_height:main_dimensions.y,
+        grid: vec![vec![0; main_dimensions.x]; main_dimensions.y]
+    };
+
+    for p_lat in (min_bound.latitude.floor() as isize)..(max_bound.latitude.ceil() as isize) {
+        for p_lon in (min_bound.longitude.floor() as isize)..(max_bound.longitude.ceil() as isize) {
 
             let partition_min = GeoPoint {
-                longitude: min_bound.longitude.max(part_longitude as f64),
-                latitude: min_bound.latitude.max(part_latitude as f64)
+                longitude:min_bound.longitude.max(p_lon as f64),
+                latitude:min_bound.latitude.max(p_lat as f64)
             };
             let partition_max = GeoPoint {
-                longitude: max_bound.longitude.min(part_longitude as f64 + 1.0),
-                latitude: max_bound.latitude.min(part_latitude as f64 + 1.0)
+                longitude:max_bound.longitude.min((p_lon+1) as f64),
+                latitude:max_bound.latitude.min((p_lat+1) as f64)
             };
 
-            let dimensions = compute_raster_dimensions(&partition_min, &partition_max);
-
-            let subframe = SrtmFrame {
-                min_bound: partition_min, 
-                max_bound: partition_max, 
-                raster_width: dimensions.x, 
-                raster_height: dimensions.y, 
-                grid: vec![vec![0; dimensions.x]; dimensions.y]};
-
-            let populated_subframe = fill_frame_elevation_grid(subframe)
-            .expect("GeoTiff does not exist for this subframe");
-
-            subframes.push(
-                populated_subframe
+            fill_frame_with_partition(
+                &mut main_frame,
+                partition_min,
+                partition_max
             );
         }
     }
-
-    subframes
-}
-
-/// Return an SrtmFrame containing elevation data within 'min_bound' and 'max_bound'
-/// Returns 'None' if there is missing data for any coordinates inside the frame
-pub fn get_elevation_in_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> SrtmFrame {
-    let dimensions = compute_raster_dimensions(&min_bound, &max_bound);
-    let mut main_frame = SrtmFrame{
-        min_bound:min_bound.clone(),
-        max_bound:max_bound.clone(),
-        raster_width: dimensions.x,
-        raster_height: dimensions.y,
-        grid: vec![vec![0; dimensions.x]; dimensions.y]
-    };
-
-    let sub_frames = partition_bounds(&min_bound, &max_bound);
-
-    for subframe in sub_frames {
-        let min_pixels = convert_geo_to_raster(&main_frame, &subframe.min_bound);
-
-        for y in 0..subframe.raster_height {
-            for x in 0..subframe.raster_width {
-                main_frame.grid[y+min_pixels.y][x+min_pixels.x] = subframe.get_elevation_at_pixel(x, y);
-            }
-        }
-    };
 
     main_frame
 }
@@ -170,7 +175,7 @@ mod tests {
         let min = GeoPoint{longitude:-4.3,latitude:50.0};
         let max = GeoPoint{longitude:1.0, latitude:51.2};
 
-        assert_eq!(partition_bounds(&min, &max).len(), 12);
+        assert_eq!(get_elevation_in_bounds(&min, &max).grid.len(), 12);
     }
 
     #[test]
@@ -178,6 +183,6 @@ mod tests {
         let min = GeoPoint{longitude:-3.8,latitude:50.0};
         let max = GeoPoint{longitude:-3.2, latitude:50.6};
 
-        assert_eq!(partition_bounds(&min, &max).len(), 1);
+        assert_eq!(get_elevation_in_bounds(&min, &max).grid.len(), 1);
     }
 }
