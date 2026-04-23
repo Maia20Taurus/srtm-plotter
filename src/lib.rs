@@ -31,7 +31,7 @@ impl SrtmFrame {
     }
 
     /// Get the elevation at the specified GeoPoint
-    pub fn get_elevation_at_point(&self, point: GeoPoint) -> i16 {
+    pub fn get_elevation_at_point(&self, point: &GeoPoint) -> i16 {
         let pixel = convert_geo_to_raster(&self, &point);
         self.get_elevation_at_pixel(pixel.x, pixel.y)
     }
