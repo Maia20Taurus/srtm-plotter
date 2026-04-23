@@ -26,8 +26,8 @@ impl SrtmFrame {
     }
 
     /// Get the elevation at the specified pixel
-    pub fn get_elevation_at_pixel(&self, latitude: usize, longitude: usize) -> i16 {
-        self.grid[latitude][longitude]
+    pub fn get_elevation_at_pixel(&self, x: usize, y: usize) -> i16 {
+        self.grid[y][x]
     }
 
     /// Get the elevation at the specified GeoPoint
