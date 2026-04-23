@@ -1,7 +1,6 @@
 use crate::geo::*;
 use crate::SrtmFrame;
 use std::fs::{File, read_dir};
-use std::cmp::{min, max};
 use geotiff::GeoTiff;
 use geo_types::coord;
 
