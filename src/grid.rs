@@ -46,7 +46,12 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
 /// This function expects the frame to fit inside a single GeoTiff (see partition_bounds to achieve this)
 /// () if no GeoTiff is found for any of the pixels in the frame
 fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
-    let geotiff = get_geotiff_at_point(&frame.min_bound).expect("GeoTiff does not exist");
+    let mid = GeoPoint{
+        longitude:(frame.max_bound.longitude+frame.min_bound.longitude)/2.0,
+        latitude:(frame.max_bound.latitude+frame.min_bound.latitude)/2.0
+    };
+
+    let geotiff = get_geotiff_at_point(&mid).expect("GeoTiff does not exist");
 
     let extent = geotiff.model_extent();
     let tif_min = extent.min();
@@ -62,10 +67,10 @@ fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
             frame.grid[y][x] = geotiff.get_value_at(
                 &coord!{
                     // Clamp the coordinates inside the geotiff to prevent queries at its edges
-                    x:coordinate.longitude.clamp(tif_min.x+eps, tif_max.x-eps),
-                    y:coordinate.latitude.clamp(tif_min.y+eps, tif_max.y-eps)},
+                    x:coordinate.longitude,
+                    y:coordinate.latitude},
                     0
-            ).expect("Could not get elevation");
+            ).unwrap_or(0);
         }
     }
 
