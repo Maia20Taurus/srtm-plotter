@@ -98,7 +98,8 @@ fn partition_bounds(min_bound: &GeoPoint, max_bound: &GeoPoint) -> Vec<SrtmFrame
                 raster_height: dimensions.y, 
                 grid: vec![vec![0; dimensions.x]; dimensions.y]};
 
-            let populated_subframe = fill_frame_elevation_grid(subframe).expect("GeoTiff does not exist for this subframe");
+            let populated_subframe = fill_frame_elevation_grid(subframe)
+            .expect("GeoTiff does not exist for this subframe");
 
             subframes.push(
                 populated_subframe

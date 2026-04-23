@@ -4,10 +4,10 @@ use plotters_backend::BackendColor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let min_bound = GeoPoint{
-        latitude:50.57312599959167, longitude:-3.681166929507134
+        latitude:50.6879014082319, longitude:-3.5797478415813053
     };
     let max_bound = GeoPoint{
-        latitude:50.810654922812375, longitude:-3.406491509839958
+        latitude:50.75259597030521, longitude:-3.4851919242025415
     };
     let frame = SrtmFrame::new(&min_bound, &max_bound);
 
