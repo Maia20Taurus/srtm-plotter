@@ -320,11 +320,9 @@ dependencies = [
 [[package]]
 name = "geotiff"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4eb5c3769ccf6d286c5e3419930a8ccda0040c2c6e20548e125ceb489d184faf"
+source = "git+https://github.com/georust/geotiff?rev=e78a91164e98902b1ddd7bcd28f7ce109849927e#e78a91164e98902b1ddd7bcd28f7ce109849927e"
 dependencies = [
  "geo-types",
- "num-traits",
  "num_enum",
  "tiff",
 ]

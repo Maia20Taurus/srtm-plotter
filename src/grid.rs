@@ -57,16 +57,13 @@ fn fill_frame_with_partition(main_frame: &mut SrtmFrame, partition_min: GeoPoint
     for part_y in partition_start_pixel.y..partition_end_pixel.y {
         for part_x in partition_start_pixel.x..partition_end_pixel.x {
 
-            let current_pixel_partition = RasterPoint{
-                x: part_x,
-                y: part_y
-            };
-
-            let current_point = convert_raster_to_geo(&main_frame, &current_pixel_partition);
-
-            main_frame.grid[current_pixel_partition.y][current_pixel_partition.x] = geotiff.get_value_at(
-                &coord!{x:current_point.longitude,y:current_point.latitude},
-                0).unwrap_or(0);
+            let elevation = geotiff
+            .get_value_at_pixel(part_x.clone(), part_y.clone(), 0);
+            match elevation {
+                Some(x) => 
+                main_frame.grid[part_y][part_x] = x.as_i16().unwrap(),
+                None => main_frame.grid[part_y][part_x] = 0
+            }
         }
     }
 }

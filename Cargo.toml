@@ -6,6 +6,6 @@ edition = "2024"
 [dependencies]
 almost = "0.2.0"
 geo-types = "0.7.19"
-geotiff = "0.1.0"
+geotiff = {git = "https://github.com/georust/geotiff", rev="e78a91164e98902b1ddd7bcd28f7ce109849927e"}
 plotters = "0.3.7"
 plotters-backend = "0.3.7"
