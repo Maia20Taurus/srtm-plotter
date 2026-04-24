@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let pixel = RasterPoint{x:x as usize,y:y as usize};
 
-            let elevation = frame.get_elevation_at_pixel(&pixel);
+            let elevation = frame.get_elevation_at_pixel(&pixel) / 2;
 
             let color = BackendColor {
                 alpha: 1.0,
