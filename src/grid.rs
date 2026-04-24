@@ -6,8 +6,8 @@ use geotiff::GeoTiff;
 use geo_types::coord;
 
 // The minimum amount of distance (in degrees) between each pixel
-// 1 degree / 3601 pixels (The dimensions of a 1 degree SRTM tile)
-pub const RESOLUTION_DEGREES: f64 = 1.0/3601.0;
+// 1 degree / 3600 pixels (The dimensions of a 1 degree SRTM tile)
+pub const RESOLUTION_DEGREES: f64 = 1.0/3600.0;
 
 const TIF_DIR: &str = "resources";
 
@@ -35,73 +35,36 @@ fn get_geotiff_at_point(point: &GeoPoint) -> Option<GeoTiff> {
         let min = bounds.min();
         let max = bounds.max();
 
-        if point.longitude >= min.x && point.longitude < max.x
-        && point.latitude >= min.y && point.latitude < max.y {
+        if point.longitude >= min.x && point.longitude <= max.x
+        && point.latitude >= min.y && point.latitude <= max.y {
             return Some(geotiff);
         }
     }
     None
 }
 
-/// Populate the frame's elevation grid using GeoTiff data
-/// This function expects the frame to fit inside a single GeoTiff (see partition_bounds to achieve this)
-/// () if no GeoTiff is found for any of the pixels in the frame
-fn fill_frame_elevation_grid(mut frame: SrtmFrame) -> Option<SrtmFrame> {
-    let mid = GeoPoint{
-        longitude:(frame.max_bound.longitude+frame.min_bound.longitude)/2.0,
-        latitude:(frame.max_bound.latitude+frame.min_bound.latitude)/2.0
-    };
-
-    let geotiff = get_geotiff_at_point(&mid)?;
-
-    for y in 0..frame.raster_height {
-        for x in 0..frame.raster_width {
-            let pixel = RasterPoint{x, y};
-            let coordinate = convert_raster_to_geo(&frame, &pixel);
-
-            frame.grid[y][x] = geotiff.get_value_at(
-                &coord!{
-                    // Clamp the coordinates inside the geotiff to prevent queries at its edges
-                    x:coordinate.longitude,
-                    y:coordinate.latitude},
-                    0
-            ).unwrap_or(0);
-        }
-    }
-
-    Some(frame)
-}
-
 fn fill_frame_with_partition(main_frame: &mut SrtmFrame, partition_min: GeoPoint, partition_max: GeoPoint) {
-    let geotiff = get_geotiff_at_point(&partition_min).expect("geotiff does not exist");
-
-    let partition_dimensions = compute_raster_dimensions(&partition_min, &partition_max);
-    let partition_start_pixel = convert_geo_to_raster(&main_frame, &partition_min);
-
-    // Initialise a partition frame to allow use of the coordinates conversion functions
-    let partition_frame = SrtmFrame {
-        min_bound: partition_min.clone(),
-        max_bound: partition_max.clone(),
-        raster_width: partition_dimensions.x,
-        raster_height: partition_dimensions.y,
-        grid: vec![vec![0; 0]; 0] // Empty vec needed just to initialise the frame
+    let query_coord = GeoPoint {
+        longitude: partition_min.longitude + 0.0001,
+        latitude: partition_min.latitude + 0.0001
     };
 
-    for part_y in 0..partition_dimensions.y {
-        for part_x in 0..partition_dimensions.x {
+    let geotiff = get_geotiff_at_point(&query_coord).expect("geotiff does not exist");
 
-            let current_pixel_main = RasterPoint{
-                x: partition_start_pixel.x + part_x,
-                y: partition_start_pixel.y + part_y 
-            };
+    let partition_start_pixel = convert_geo_to_raster(&main_frame, &partition_min);
+    let partition_end_pixel = convert_geo_to_raster(&main_frame, &partition_max);
+
+    for part_y in partition_start_pixel.y..partition_end_pixel.y {
+        for part_x in partition_start_pixel.x..partition_end_pixel.x {
+
             let current_pixel_partition = RasterPoint{
                 x: part_x,
                 y: part_y
             };
 
-            let current_point = convert_raster_to_geo(&partition_frame, &current_pixel_partition);
+            let current_point = convert_raster_to_geo(&main_frame, &current_pixel_partition);
 
-            main_frame.grid[current_pixel_main.y][current_pixel_main.x] = geotiff.get_value_at(
+            main_frame.grid[current_pixel_partition.y][current_pixel_partition.x] = geotiff.get_value_at(
                 &coord!{x:current_point.longitude,y:current_point.latitude},
                 0).unwrap_or(0);
         }
